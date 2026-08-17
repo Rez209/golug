@@ -1,0 +1,19 @@
+import os
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from database import get_db
+
+app = FastAPI(title="{{.ServiceName}}")
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome! Python microservice {{.ServiceName}} is running successfully!"}
+
+@app.get("/api/health")
+def health_check(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "OK", "service": "{{.ServiceName}}", "database": "OK"}
+    except Exception as e:
+        return {"status": "ERROR", "service": "{{.ServiceName}}", "database": "ERROR", "details": str(e)}

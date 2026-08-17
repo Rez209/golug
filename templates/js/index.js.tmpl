@@ -1,0 +1,22 @@
+require('dotenv').config();
+const express = require('express');
+const pool = require('./db');
+const app = express();
+const port = process.env.PORT || {{.Port}};
+
+app.get('/', (req, res) => {
+  res.json({ message: "Welcome! JS microservice {{.ServiceName}} is running successfully!" });
+});
+
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: "OK", service: "{{.ServiceName}}", database: "OK" });
+  } catch (err) {
+    res.status(500).json({ status: "ERROR", service: "{{.ServiceName}}", database: "ERROR", details: err.message });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`🚀 JS Server {{.ServiceName}} is running on port ${port}`);
+});

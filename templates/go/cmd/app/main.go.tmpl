@@ -1,0 +1,43 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+	"time"
+
+	"{{.Module}}/internal/api"
+	"{{.Module}}/internal/config"
+	"{{.Module}}/internal/database"
+	"{{.Module}}/internal/repository"
+)
+
+func main() {
+	cfg := config.Load()
+	if cfg.Port == "" {
+		cfg.Port = "8080"
+	}
+	
+	db, err := database.Connect(cfg)
+	if err != nil {
+		log.Printf("⚠️ Warning: Failed to connect to the database: %v\n", err)
+	} else {
+		defer db.Close()
+		repository.InitDB(db)
+	}
+
+	serverPort := ":" + cfg.Port
+	fmt.Printf("🚀 Starting HTTP server on port %s\n", serverPort)
+
+	srv := &http.Server{
+		Addr:         serverPort,
+		Handler:      api.SetupRoutes(db),
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  15 * time.Second,
+	}
+
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatal("Server error:", err)
+	}
+}

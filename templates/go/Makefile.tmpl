@@ -1,0 +1,12 @@
+.PHONY: run down audit
+
+run:
+    docker compose up -d --build
+
+down:
+    docker compose down
+
+audit:
+    @echo "🔍 Running security check (gosec)..."
+    @CGO_ENABLED=0 go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet ./...
+    @echo "✅ Audit completed! No vulnerabilities found."

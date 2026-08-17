@@ -1,0 +1,51 @@
+package repository
+
+import (
+	"database/sql"
+	"log"
+)
+
+type User struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+func InitDB(db *sql.DB) {
+	query := `CREATE TABLE IF NOT EXISTS users (
+		id SERIAL PRIMARY KEY,
+		name VARCHAR(100) NOT NULL
+	);`
+	_, err := db.Exec(query)
+	if err != nil {
+		log.Fatalf("Error creating table: %v", err)
+	}
+}
+
+func CreateUser(db *sql.DB, name string) (int, error) {
+	var id int
+	query := "INSERT INTO users (name) VALUES ($1) RETURNING id;"
+	err := db.QueryRow(query, name).Scan(&id)
+	return id, err
+}
+
+func GetUsers(db *sql.DB) ([]User, error) {
+	rows, err := db.Query("SELECT id, name FROM users;")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Name); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+
+	if users == nil {
+		users = []User{}
+	}
+	return users, nil
+}

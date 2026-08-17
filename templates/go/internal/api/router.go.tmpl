@@ -1,0 +1,71 @@
+package api
+
+import (
+    "database/sql"
+    "encoding/json"
+    "fmt"
+    "log"
+    "net/http"
+    "strings"
+    "time"
+
+    "{{.Module}}/internal/handlers"
+)
+
+type HealthResponse struct {
+    Status  string `json:"status"`
+    Service string `json:"service"`
+}
+
+func loggingMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        start := time.Now()
+        next.ServeHTTP(w, r)
+
+        cleanPath := strings.ReplaceAll(r.URL.Path, "\n", "")
+        cleanPath = strings.ReplaceAll(cleanPath, "\r", "")
+
+        // #nosec G706
+        log.Printf("[NETWORK] Method: %s | Path: %s | Processing time: %v", r.Method, cleanPath, time.Since(start))
+    })
+}
+
+func securityMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("X-XSS-Protection", "1; mode=block")
+        w.Header().Set("X-Frame-Options", "DENY")
+        w.Header().Set("X-Content-Type-Options", "nosniff")
+        next.ServeHTTP(w, r)
+    })
+}
+
+func SetupRoutes(db *sql.DB) http.Handler {
+    mux := http.NewServeMux()
+    userHandler := &handlers.UserHandler{DB: db}
+
+    mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        fmt.Fprintf(w, "Welcome! Microservice {{.ServiceName}} is running successfully!")
+    })
+
+    mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/json")
+        response := HealthResponse{Status: "OK", Service: "{{.ServiceName}}"}
+        if err := json.NewEncoder(w).Encode(response); err != nil {
+            log.Printf("JSON error: %v", err)
+        }
+    })
+
+    mux.HandleFunc("/api/users", func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/json")
+        switch r.Method {
+        case http.MethodGet:
+            userHandler.GetUsers(w, r)
+        case http.MethodPost:
+            userHandler.CreateUser(w, r)
+        default:
+            http.Error(w, "Method not supported", http.StatusMethodNotAllowed)
+        }
+    })
+
+    return loggingMiddleware(securityMiddleware(mux))
+}
