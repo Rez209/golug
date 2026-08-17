@@ -25,12 +25,11 @@ type TemplateData struct {
 	Module      string
 }
 
-// ДОДАНО: 4-й аргумент module
 func GenerateService(serviceName string, port string, lang string, module string) error {
 	data := TemplateData{
 		ServiceName: serviceName,
 		Port:        port,
-		Module:      module, // ДОДАНО: Зберігаємо модуль
+		Module:      module, 
 	}
 
 	if err := os.MkdirAll(serviceName, 0755); err != nil {
